@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+require 'blower'
+
+huff = Blower::Huff.new
+
+args = ARGV
+args = ["main"] if args.empty? && (File.exist?("main") || !Dir["main.*"].empty?)
+
+if args.empty?
+  huff.log.fail "Usage: blow TASK..."
+  exit 1
+end
+
+args = ["hosts.ini", *args] if File.exist?("hosts.ini")
+
+begin
+  args.each do |arg|
+    huff.run arg
+  end
+rescue RuntimeError => e
+  huff.log.fail e.message
+  exit 1
+end

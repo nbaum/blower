@@ -1,0 +1,20 @@
+PATH
+  remote: .
+  specs:
+    blower (0.1.1)
+      colorize (~> 0.7)
+      net-ssh (~> 3.0)
+
+GEM
+  specs:
+    colorize (0.7.7)
+    net-ssh (3.0.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  blower!
+
+BUNDLED WITH
+   1.10.6
