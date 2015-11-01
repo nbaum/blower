@@ -1,24 +1,16 @@
 #!/usr/bin/env ruby
-
 require 'blower'
+require 'pathname'
+require 'optparse'
 
-huff = Blower::Huff.new
-
-args = ARGV
-args = ["main"] if args.empty? && (File.exist?("main") || !Dir["main.*"].empty?)
-
-if args.empty?
-  huff.log.fail "Usage: blow TASK..."
-  exit 1
-end
-
-args = ["hosts.ini", *args] if File.exist?("hosts.ini")
-
-begin
-  args.each do |arg|
-    huff.run arg
+OptionParser.new do |opts|
+  opts.banner = "Usage: blow [options] task..."
+  opts.on "-d DIR", "Change directory" do |v|
+    Dir.chdir v
   end
-rescue RuntimeError => e
-  huff.log.fail e.message
-  exit 1
+end.order!
+
+context = Blower::HostGroup.from_inventory("hosts")
+ARGV.each do |arg|
+  context.run arg
 end
