@@ -66,8 +66,11 @@ module Blower
         if here != there
           log.info "#{from} -> #{to} (#{File.stat(from).size} bytes)"
           execute("rm -f #{to.shellescape}")
-          system("scp #{from} #{@user}@#{@name}:#{to}")
-          #ssh.scp.upload! from, to
+          if File.stat(from).size > 1000000
+            system("scp #{from} #{@user}@#{@name}:#{to}")
+          else
+            ssh.scp.upload! from, to
+          end
         end
       end
     end
