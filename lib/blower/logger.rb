@@ -4,8 +4,9 @@ module Blower
 
   class Logger
 
-    def initialize ()
+    def initialize (prefix = "")
       @logdent = 0
+      @prefix = prefix
     end
 
     def info (message, **keys, &block)
@@ -28,7 +29,7 @@ module Blower
       log(message, :green, **keys, &block)
     end
 
-    def log (message, color=nil, to=STDOUT, prefix: "", &block)
+    def log (message, color=nil, to=STDOUT, prefix: @prefix, &block)
       message.to_s.scan(/(?:[^\n\r]*[\n\r])|(?:[^\n\r]+$)/) do |line|
         case line[-1]
         when "\n", "\r"

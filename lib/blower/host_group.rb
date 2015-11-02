@@ -4,6 +4,8 @@ module Blower
 
     attr_accessor :hosts
     attr_accessor :log
+    attr_accessor :root
+    attr_accessor :location
 
     def self.from_inventory (path)
       new(File.read(path).split("\n").map do |line|
@@ -11,25 +13,25 @@ module Blower
       end)
     end
 
+    def self.delegate (*names)
+      names.each do |name|
+        define_method name do |*args, &block|
+          each do |host|
+            host.__send__(name, *args, &block)
+          end
+        end
+      end
+    end
+
+    delegate :sh, :cp, :capture, :reboot
+
     def initialize (hosts)
       @hosts = hosts
       @log = Logger.new
     end
 
-    def run (task)
-      Dir.chdir File.dirname task do
-        instance_eval(File.read File.basename task + ".rb", task)
-      end
-    end
-
-    def once (&block)
-      hosts.sample.instance_exec(&block)
-    end
-
-    def method_missing (name, *args, &block)
-      hosts.each do |host|
-        host.__send__(name, *args, &block)
-      end
+    def each (&block)
+      hosts.map(&block)
     end
 
   end
