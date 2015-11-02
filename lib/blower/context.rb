@@ -22,7 +22,7 @@ module Blower
     end
 
     def each_host (hosts = target.hosts, &block)
-      target.hosts.each do |host|
+      hosts.each do |host|
         begin
           target, @target = @target, host
           block.()
