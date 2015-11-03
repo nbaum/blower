@@ -17,8 +17,8 @@ module Blower
       @log = Logger.new
     end
 
-    def one_host (&block)
-      each_host [target.hosts.sample], &block
+    def one_host (name = nil, &block)
+      each_host [name || target.hosts.sample], &block
     end
 
     def each_host (hosts = target.hosts, &block)
