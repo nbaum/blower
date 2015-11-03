@@ -13,7 +13,7 @@ module Blower
       new(line, "root")
     end
 
-    def initialize (name, user)
+    def initialize (name, user = "root")
       @name = name
       @user = user
       @log = Logger.new("#{user}@#{name.ljust(15)} | ")
