@@ -17,6 +17,15 @@ module Blower
       @name = name
       @user = user
       @log = Logger.new("#{user}@#{name.ljust(15)} | ")
+      @data = {}
+    end
+
+    def []= (key, value)
+      @data[key] = value
+    end
+
+    def [] (key)
+      @data[key]
     end
 
     def write (data, dest)
