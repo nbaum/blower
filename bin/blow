@@ -11,7 +11,7 @@ OptionParser.new do |opts|
 end.order!
 
 context = Blower::Context.new([".", Dir.pwd])
-context.target = Blower::HostGroup.from_inventory("hosts")
+context.target = nil
 context.run "Blowfile"
 ARGV.each do |arg|
   context.run arg
