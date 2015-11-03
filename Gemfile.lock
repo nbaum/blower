@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    blower (1.0.0)
+    blower (1.2.1)
       colorize (~> 0.7)
       net-scp (~> 1.2)
       net-ssh (~> 3.0)
