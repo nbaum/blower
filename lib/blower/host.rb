@@ -27,7 +27,7 @@ module Blower
       @data = {}
     end
 
-    def ping ()
+    def ping
       Timeout.timeout(1) do
         TCPSocket.new(name, 22).close
       end
