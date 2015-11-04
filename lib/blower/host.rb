@@ -4,10 +4,14 @@ require 'net/scp'
 module Blower
 
   class Host
+    extend Forwardable
 
     attr_accessor :name
     attr_accessor :user
     attr_accessor :log
+    attr_accessor :data
+
+    def_delegators :data, :[], :[]=
 
     def self.from_inventory_line (line)
       new(line, "root")

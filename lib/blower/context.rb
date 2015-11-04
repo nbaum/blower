@@ -33,6 +33,32 @@ module Blower
       end
     end
 
+    def reboot
+      begin
+        sh "shutdown -r now"
+      rescue IOError
+        sleep 0.1 while ping
+        log.info "Waiting for host to come back"
+        sleep 1.0 until ping
+      end
+    end
+
+    def write (string, to)
+      cp(StringIO.new(string), to)
+    end
+
+    def sh? (command)
+      sh(command)
+    rescue Blower::Host::ExecuteError
+      false
+    end
+
+    def capture (command)
+      stdout = ""
+      sh(command, stdout: stdout)
+      stdout
+    end
+
     def run (task)
       files = []
       @path.each do |dir|
