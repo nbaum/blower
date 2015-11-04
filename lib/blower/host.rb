@@ -20,12 +20,6 @@ module Blower
       @data = {}
     end
 
-    def write (data, dest)
-      log.info "writing #{dest}"
-      execute("rm -f #{dest.shellescape}")
-      ssh.scp.upload! StringIO.new(data), dest
-    end
-
     def ping ()
       Timeout.timeout(1) do
         TCPSocket.new(name, 22).close
@@ -35,27 +29,6 @@ module Blower
       false
     rescue Errno::ECONNREFUSED
       false
-    end
-
-    def reboot ()
-      log.info "rebooting"
-      begin
-        sh "shutdown -r now"
-      rescue IOError
-        # Hopefully this is fine. Ugh.
-      end
-      tick = 0
-      while ping
-        tick += 1
-        log.info "waiting for host to go away... #{"-\\|/"[tick % 4]}\r"
-        sleep 0.1
-      end
-      until ping
-        tick += 1
-        log.info "waiting for host to come back... #{"-\\|/"[tick % 4]}\r"
-        sleep 0.1
-      end
-      log.info "\nreboot finished"
     end
 
     def cp (from, to, quiet: false)
