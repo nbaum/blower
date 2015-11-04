@@ -53,13 +53,6 @@ module Blower
       end
     end
 
-    private
-
-    def ssh ()
-      @ssh = nil if @ssh && @ssh.closed?
-      @ssh ||= Net::SSH.start(name, user)
-    end
-
     def sh (command, quiet: false, stdout: STDOUT, stderr: STDERR)
       log.info command unless quiet
       result = nil
@@ -79,6 +72,11 @@ module Blower
       result == 0 ? true : raise(ExecuteError.new(result))
     end
 
+    private
+
+    def ssh
+      @ssh = nil if @ssh && @ssh.closed?
+      @ssh ||= Net::SSH.start(name, user)
     end
 
   end
