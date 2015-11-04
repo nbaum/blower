@@ -53,18 +53,6 @@ module Blower
       end
     end
 
-    def capture (command)
-      result = ""
-      status = execute(*command) do |kind, data|
-        if kind == :stderr
-          log.fail data
-        else
-          result << data
-        end
-      end
-      status = 0 ? result : fail(result)
-    end
-
     private
 
     def ssh ()
