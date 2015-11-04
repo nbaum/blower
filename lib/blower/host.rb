@@ -46,13 +46,6 @@ module Blower
       end
     end
 
-    def sh (command)
-      log.info command
-      if (status = execute(*command)) != 0
-        fail "exit status #{status}"
-      end
-    end
-
     def capture (command)
       result = ""
       status = execute(*command) do |kind, data|
@@ -72,7 +65,8 @@ module Blower
       @ssh ||= Net::SSH.start(name, user)
     end
 
-    def execute (command, quiet: false, stdout: STDOUT, stderr: STDERR)
+    def sh (command, quiet: false, stdout: STDOUT, stderr: STDERR)
+      log.info command unless quiet
       result = nil
       ch = ssh.open_channel do |ch|
         ch.exec(command) do |_, success|
@@ -87,7 +81,9 @@ module Blower
         end
       end
       ch.wait
-      result
+      result == 0 ? true : raise(ExecuteError.new(result))
+    end
+
     end
 
   end
