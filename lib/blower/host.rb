@@ -58,21 +58,18 @@ module Blower
       log.info "\nreboot finished"
     end
 
-    def cp (src, dest)
-      Array(src).each do |from|
-        to = dest
+    def cp (from, to, quiet: false)
+      if from.is_a?(String)
         to += File.basename(from) if to[-1] == "/"
-        here = `md5sum #{from.shellescape}`.split(" ")[0]
-        there = capture("md5sum #{to.shellescape} 2> /dev/null").split(" ")[0]
-        if here != there
-          log.info "#{from} -> #{to} (#{File.stat(from).size} bytes)"
-          execute("rm -f #{to.shellescape}")
-          if File.stat(from).size > 1000000
-            system("scp #{from} #{@user}@#{@name}:#{to}")
-          else
-            ssh.scp.upload! from, to
-          end
-        end
+        system("rsync", "-r", "--progress", from, "#{@user}@#{@name}:#{to}")
+      elsif from.is_a?(Array)
+        to += "/" unless to[-1] == "/"
+        system("rsync", "-r", "--progress", *from, "#{@user}@#{@name}:#{to}")
+      elsif from.is_a?(StringIO) or from.is_a?(IO)
+        log.info "string -> #{to}" unless quiet
+        ssh.scp.upload!(from, to)
+      else
+        fail "Don't know how to copy a #{from.class}: #{from}"
       end
     end
 
