@@ -13,10 +13,6 @@ module Blower
 
     def_delegators :data, :[], :[]=
 
-    def self.from_inventory_line (line)
-      new(line, "root")
-    end
-
     def initialize (name, user = "root")
       @name = name
       @user = user
