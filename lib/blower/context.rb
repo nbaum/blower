@@ -10,7 +10,7 @@ module Blower
     attr_accessor :target
     attr_accessor :log
 
-    def_delegators :target, :sh, :cp, :capture, :write, :reboot
+    def_delegators :target, :sh, :cp, :capture, :write, :reboot, :ping
 
     def initialize (path)
       @path = path
