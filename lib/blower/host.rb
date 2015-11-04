@@ -102,33 +102,16 @@ module Blower
       @ssh ||= Net::SSH.start(name, user)
     end
 
-    def execute (command)
+    def execute (command, quiet: false, stdout: STDOUT, stderr: STDERR)
       result = nil
       ch = ssh.open_channel do |ch|
-        stdout, stderr = "", ""
         ch.exec(command) do |_, success|
           fail "failed to execute command" unless success
           ch.on_data do |_, data|
             stdout << data
-            if i = stdout.rindex(/[\n\r]/)
-              data, stdout = stdout[0..i], (stdout[(i + 1)..-1] || "")
-              if block_given?
-                yield :stdout, data
-              else
-                log.log data
-              end
-            end
           end
           ch.on_extended_data do |_, _, data|
             stderr << data
-            if i = stderr.rindex(/[\n\r]/)
-              data, stderr = stderr[0..i], (stderr[(i + 1)..-1] || "")
-              if block_given?
-                yield :stderr, data
-              else
-                log.fail data
-              end
-            end
           end
           ch.on_request("exit-status") { |_, data| result = data.read_long }
         end
