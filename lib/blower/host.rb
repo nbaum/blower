@@ -13,6 +13,13 @@ module Blower
 
     def_delegators :data, :[], :[]=
 
+    class ExecuteError < Exception
+      attr_accessor :status
+      def initialize (status)
+        @status = status
+      end
+    end
+
     def initialize (name, user = "root")
       @name = name
       @user = user
