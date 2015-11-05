@@ -17,4 +17,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "net-ssh", ["~> 3.0"]
   s.add_runtime_dependency "net-scp", ["~> 1.2"]
   s.add_runtime_dependency "colorize", ["~> 0.7"]
+  s.add_development_dependency "yard"
 end
