@@ -2,7 +2,7 @@
 
 Blower is a server orchestration tool with a focus on simplicity of design and minimal abstraction.
 
-Unlike competing tools such as ansible, salt, chef, or puppet, blower doesn't provide unnecessary asbtractions over existing OS functionality. Where reasonable, task scripts will use same commands as when configuring a server manually.
+Unlike competing tools such as ansible, salt, chef, or puppet, blower doesn't provide unnecessary asbtractions over existing OS functionality. Where reasonable, task scripts use the same commands as when configuring a server manually.
 
 ## Usage
 
@@ -29,4 +29,3 @@ If a task file is a directory, then it searches it for a task with the same base
 **one_host** runs a block of commands on only one host. This is primarily useful for running cluster-wide commands on clustered hosts.
 
 **each_host** runs a block of commands on each host in serial. This should be used if you need to customize commands for each host.
-
