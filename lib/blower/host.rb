@@ -1,14 +1,16 @@
 require 'net/ssh'
 require 'net/scp'
+require 'monitor'
+require 'colorize'
 
 module Blower
 
   class Host
+    include MonitorMixin
     extend Forwardable
 
     attr_accessor :name
     attr_accessor :user
-    attr_accessor :log
     attr_accessor :data
 
     def_delegators :data, :[], :[]=
@@ -23,8 +25,12 @@ module Blower
     def initialize (name, user = "root")
       @name = name
       @user = user
-      @log = Logger.new("#{user}@#{name.ljust(15)} | ")
       @data = {}
+      super()
+    end
+
+    def log
+      Logger.instance
     end
 
     def ping
@@ -38,38 +44,60 @@ module Blower
       false
     end
 
-    def cp (from, to, quiet: false)
-      if from.is_a?(String)
-        to += File.basename(from) if to[-1] == "/"
-        system("rsync", "-r", "--progress", from, "#{@user}@#{@name}:#{to}")
-      elsif from.is_a?(Array)
-        to += "/" unless to[-1] == "/"
-        system("rsync", "-r", "--progress", *from, "#{@user}@#{@name}:#{to}")
-      elsif from.is_a?(StringIO) or from.is_a?(IO)
-        log.info "string -> #{to}" unless quiet
-        ssh.scp.upload!(from, to)
-      else
-        fail "Don't know how to copy a #{from.class}: #{from}"
+    def cp (from, to, output = "")
+      synchronize do
+        if from.is_a?(String) || from.is_a?(Array)
+          to += "/" if to[-1] != "/" && from.is_a?(Array)
+          IO.popen(["rsync", "-z", "-r", "--progress", *from, "#{@user}@#{@name}:#{to}"],
+                   in: :close, err: %i(child out)) do |io|
+            until io.eof?
+              begin
+                output << io.read_nonblock(100)
+              rescue IO::WaitReadable
+                IO.select([io])
+                retry
+              end
+            end
+          end
+        elsif from.is_a?(StringIO) or from.is_a?(IO)
+          log.info "string -> #{to}" unless quiet
+          ssh.scp.upload!(from, to)
+        else
+          fail "Don't know how to copy a #{from.class}: #{from}"
+        end
+      end
+      true
+    rescue => e
+      false
+    end
+
+    def sh (command, output = "")
+      synchronize do
+        result = nil
+        ch = ssh.open_channel do |ch|
+          ch.exec(command) do |_, success|
+            fail "failed to execute command" unless success
+            ch.on_data do |_, data|
+              output << data
+            end
+            ch.on_extended_data do |_, _, data|
+              output << data.colorize(:red)
+            end
+            ch.on_request("exit-status") { |_, data| result = data.read_long }
+          end
+        end
+        ch.wait
+        if result != 0
+          log.fatal "failed on #{name}"
+          log.raw output
+          exit 1
+        end
+        result
       end
     end
 
-    def sh (command, quiet: false, stdout: STDOUT, stderr: STDERR)
-      log.info command unless quiet
-      result = nil
-      ch = ssh.open_channel do |ch|
-        ch.exec(command) do |_, success|
-          fail "failed to execute command" unless success
-          ch.on_data do |_, data|
-            stdout << data
-          end
-          ch.on_extended_data do |_, _, data|
-            stderr << data
-          end
-          ch.on_request("exit-status") { |_, data| result = data.read_long }
-        end
-      end
-      ch.wait
-      result == 0 ? true : raise(ExecuteError.new(result))
+    def each (&block)
+      block.(self)
     end
 
     private

@@ -3,35 +3,32 @@ module Blower
   class HostGroup
 
     attr_accessor :hosts
-    attr_accessor :log
     attr_accessor :root
     attr_accessor :location
 
-    def self.from_inventory (path)
-      new(File.read(path).split("\n").map do |line|
-        Host.from_inventory_line(line)
-      end)
+    def initialize (hosts)
+      @hosts = hosts
     end
 
-    def self.delegate (*names)
-      names.each do |name|
-        define_method name do |*args, &block|
-          each do |host|
-            host.__send__(name, *args, &block)
-          end
-        end
+    def sh (command = nil, *args, &block)
+      each do |host|
+        command = block.() if block
+        host.sh(command)
       end
     end
 
-    delegate :sh, :cp, :capture, :reboot
-
-    def initialize (hosts)
-      @hosts = hosts
-      @log = Logger.new
+    def cp (from, to)
+      each do |host|
+        host.cp(from, to)
+      end
     end
 
     def each (&block)
-      hosts.map(&block)
+      hosts.map do |host|
+        Thread.new do
+          block.(host)
+        end
+      end.map(&:join)
     end
 
   end

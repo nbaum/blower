@@ -8,28 +8,30 @@ module Blower
     attr_accessor :path
     attr_accessor :location
     attr_accessor :target
-    attr_accessor :log
-
-    def_delegators :target, :sh, :cp, :capture, :write, :reboot, :ping
 
     def initialize (path)
       @path = path
-      @log = Logger.new
       @have_seen = {}
+    end
+
+    def log (message, level, &block)
+      message = "(on #{target.name}) " + message if target.respond_to?(:name)
+      Logger.instance.log(message, level, &block)
+    end
+
+    def stage (message, &block)
+      log message, :info, &block
     end
 
     def one_host (name = nil, &block)
       each_host [name || target.hosts.sample], &block
     end
 
-    def each_host (hosts = target.hosts, &block)
+    def each_host (hosts = target, parallel: true, &block)
       hosts.each do |host|
-        begin
-          target, @target = @target, host
-          block.()
-        ensure
-          @target = target
-        end
+        ctx = dup
+        ctx.target = host
+        ctx.instance_exec(&block)
       end
     end
 
@@ -38,24 +40,35 @@ module Blower
         sh "shutdown -r now"
       rescue IOError
         sleep 0.1 while ping
-        log.info "Waiting for host to come back"
         sleep 1.0 until ping
       end
     end
 
+    def sh (command)
+      log "execute #{command}", :debug
+      target.sh(command)
+    end
+
+    def cp (from, to)
+      log "upload #{Array(from).join(", ")} -> #{to}", :debug
+      target.cp(from, to)
+    end
+
     def write (string, to)
-      cp(StringIO.new(string), to)
+      log "upload data to #{to}", :debug
+      target.cp(StringIO.new(string), to)
     end
 
     def sh? (command)
-      sh(command)
+      log "execute #{command}", :debug
+      target.sh(command)
     rescue Blower::Host::ExecuteError
       false
     end
 
     def capture (command)
       stdout = ""
-      sh(command, stdout: stdout)
+      target.sh(command, stdout)
       stdout
     end
 
