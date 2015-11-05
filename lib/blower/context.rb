@@ -2,11 +2,17 @@ require 'forwardable'
 
 module Blower
 
+  # Blower tasks are executed within a context.
+  #
+  # The context can be used to share information between tasks, by storing it in instance variables.
+  #
   class Context
     extend Forwardable
 
+    # Search path for tasks.
     attr_accessor :path
-    attr_accessor :location
+
+    # The current target of operations. Usually a Host, HostGroup, or MockHost.
     attr_accessor :target
 
     def initialize (path)
@@ -14,20 +20,27 @@ module Blower
       @have_seen = {}
     end
 
+    # Send a message to the logger, prefixing it with the target name, if it has one.
+    # Passes the block through to the logger.
     def log (message, level, &block)
       message = "(on #{target.name}) " + message if target.respond_to?(:name)
       Logger.instance.log(message, level, &block)
     end
 
+    # Log an INFO message.
     def stage (message, &block)
       log message, :info, &block
     end
 
-    def one_host (name = nil, &block)
-      each_host [name || target.hosts.sample], &block
+    # Execute the block on one host.
+    # @param host Host to use. If nil, a random host is picked.
+    def one_host (host = nil, &block)
+      each_host [host || target.hosts.sample], &block
     end
 
-    def each_host (hosts = target, parallel: true, &block)
+    # Execute the block once for each host.
+    # Each block executes in a copy of the context.
+    def each_host (hosts = target, &block)
       hosts.each do |host|
         ctx = dup
         ctx.target = host
@@ -35,30 +48,43 @@ module Blower
       end
     end
 
-    def reboot
-      begin
-        sh "shutdown -r now"
-      rescue IOError
-        sleep 0.1 while ping
-        sleep 1.0 until ping
+    # Reboot each host and waits for them to come back up.
+    # @param command The reboot command. A string.
+    def reboot (command = "reboot")
+      each_host do
+        begin
+          sh command
+        rescue IOError
+          sleep 0.1 while ping
+          sleep 1.0 until ping
+        end
       end
     end
 
+    # Execute a shell command on each host.
     def sh (command)
       log "execute #{command}", :debug
       target.sh(command)
     end
 
+    # Copy a file or readable to the host filesystem.
+    # @param from An object that responds to read, or a string which names a file, or an array of either.
+    # @param to A string.
     def cp (from, to)
       log "upload #{Array(from).join(", ")} -> #{to}", :debug
       target.cp(from, to)
     end
 
+    # Writes a string to a file on the host filesystem.
+    # @param string The string to write.
+    # @param to A string.
     def write (string, to)
       log "upload data to #{to}", :debug
       target.cp(StringIO.new(string), to)
     end
 
+    # Execute a command on the remote host.
+    # @return false if the command exits with a non-zero status
     def sh? (command)
       log "execute #{command}", :debug
       target.sh(command)
@@ -66,12 +92,16 @@ module Blower
       false
     end
 
+    # Capture the output a command on the remote host.
+    # @return (String) The combined stdout and stderr of the command.
     def capture (command)
       stdout = ""
       target.sh(command, stdout)
       stdout
     end
 
+    # Run a task.
+    # @param task (String) The name of the task
     def run (task)
       files = []
       @path.each do |dir|

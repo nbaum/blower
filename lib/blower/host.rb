@@ -11,7 +11,6 @@ module Blower
 
     attr_accessor :name
     attr_accessor :user
-    attr_accessor :data
 
     def_delegators :data, :[], :[]=
 
@@ -27,10 +26,6 @@ module Blower
       @user = user
       @data = {}
       super()
-    end
-
-    def log
-      Logger.instance
     end
 
     def ping
@@ -59,7 +54,7 @@ module Blower
               end
             end
           end
-        elsif from.is_a?(StringIO) or from.is_a?(IO)
+        elsif from.respond_to?(:read)
           log.info "string -> #{to}" unless quiet
           ssh.scp.upload!(from, to)
         else
@@ -96,11 +91,19 @@ module Blower
       end
     end
 
+    # Execute the block with self as a parameter.
+    # Exists to confirm with the HostGroup interface.
     def each (&block)
       block.(self)
     end
 
     private
+
+    attr_accessor :data
+
+    def log
+      Logger.instance
+    end
 
     def ssh
       @ssh = nil if @ssh && @ssh.closed?

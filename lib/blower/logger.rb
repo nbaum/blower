@@ -2,6 +2,12 @@ require "singleton"
 
 module Blower
 
+  # Colorized logger.
+  #
+  # Prints messages to STDOUT, colorizing them according to the specified log level.
+  #
+  # The logging methods accept an optional block. Inside the block, log messages will
+  # be indented by two spaces. This works recursively.
   class Logger
     include MonitorMixin
     include Singleton
@@ -20,13 +26,29 @@ module Blower
       super()
     end
 
+    # Log a trace level event
     def trace (a=nil, *b, &c); log(a, :trace, *b, &c); end
+
+    # Log a debug level event
     def debug (a=nil, *b, &c); log(a, :debug, *b, &c); end
+
+    # Log a info level event
     def info (a=nil, *b, &c); log(a, :info, *b, &c); end
+
+    # Log a warn level event
     def warn (a=nil, *b, &c); log(a, :warn, *b, &c); end
+
+    # Log a error level event
     def error (a=nil, *b, &c); log(a, :error, *b, &c); end
+
+    # Log a fatal level event
     def fatal (a=nil, *b, &c); log(a, :fatal, *b, &c); end
+
+    # Log a level-less event
+    # @deprecated
     def raw (a=nil, *b, &c); log(a, nil, *b, &c); end
+
+    private
 
     def log (message = nil, level = :info, &block)
       if message
@@ -43,10 +65,6 @@ module Blower
       end if block
     end
 
-  end
-
-  def self.log (*args, &block)
-    Logger.instance.log(*args, &block)
   end
 
 end
