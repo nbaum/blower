@@ -1,0 +1,119 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>
+  File: README
+  
+    &mdash; Documentation by YARD 0.8.7.6
+  
+</title>
+
+  <link rel="stylesheet" href="css/style.css" type="text/css" charset="utf-8" />
+
+  <link rel="stylesheet" href="css/common.css" type="text/css" charset="utf-8" />
+
+<script type="text/javascript" charset="utf-8">
+  hasFrames = window.top.frames.main ? true : false;
+  relpath = '';
+  framesUrl = "frames.html#!file.README.html";
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div id="header">
+      <div id="menu">
+  
+    <a href="_index.html">Index</a> &raquo; 
+    <span class="title">File: README</span>
+  
+
+  <div class="noframes"><span class="title">(</span><a href="." target="_top">no frames</a><span class="title">)</span></div>
+</div>
+
+      <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="class_list.html">
+      Class List
+    </a>
+  
+    <a class="full_list_link" id="method_list_link"
+        href="method_list.html">
+      Method List
+    </a>
+  
+    <a class="full_list_link" id="file_list_link"
+        href="file_list.html">
+      File List
+    </a>
+  
+</div>
+      <div class="clear"></div>
+    </div>
+
+    <iframe id="search_frame"></iframe>
+
+    <div id="content"><div id='filecontents'>
+<h1 id="label-Blower">Blower</h1>
+
+<p>Blower is a server orchestration tool with a focus on simplicity of design
+and minimal abstraction.</p>
+
+<p>Unlike competing tools such as ansible, salt, chef, or puppet, blower
+doesn&#39;t provide unnecessary asbtractions over existing OS
+functionality. Where reasonable, task scripts use the same commands as when
+configuring a server manually.</p>
+
+<h2 id="label-Usage">Usage</h2>
+
+<pre class="code ruby"><code class="ruby">blow [-d directory] task...</code></pre>
+
+<p>If a directory is specified, blower will change to it before starting.</p>
+
+<p>Tasks are executed in the order specified. There is an implied first task
+which runs “Blowfile”.</p>
+
+<p>The Blowfile will normally be used to configure the hosts that the rest of
+the tasks operate on.</p>
+
+<h2 id="label-Finding+tasks">Finding tasks</h2>
+
+<p>Blower looks for task files first literally and then with .rb appended.</p>
+
+<p>If a task file is a directory, then it searches it for a task with the same
+basename as the current task. If it finds one, and the directory contains a
+Blowfile, the Blowfile will be executed first.</p>
+
+<p><strong>sh</strong> executes a command on the remote host(s), via ssh. The
+command is executed on all hosts in serial. <strong>sh</strong> does not
+return until all hosts have finished.</p>
+
+<p><strong>reboot</strong> reboots each host in serial and waits for it to
+respond to ssh requests.</p>
+
+<p><strong>cp</strong> copies a file from the local filesystem to the remote
+host(s).</p>
+
+<p><strong>one_host</strong> runs a block of commands on only one host. This
+is primarily useful for running cluster-wide commands on clustered hosts.</p>
+
+<p><strong>each_host</strong> runs a block of commands on each host in serial.
+This should be used if you need to customize commands for each host.</p>
+</div></div>
+
+    <div id="footer">
+  Generated on Thu Nov  5 17:25:43 2015 by
+  <a href="http://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.8.7.6 (ruby-2.2.3).
+</div>
+
+  </body>
+</html>
