@@ -68,9 +68,12 @@
 and minimal abstraction.</p>
 
 <p>Unlike competing tools such as ansible, salt, chef, or puppet, blower
-doesn&#39;t provide unnecessary asbtractions over existing OS
+doesn&#39;t provide unnecessary abstractions over existing OS
 functionality. Where reasonable, task scripts use the same commands as when
 configuring a server manually.</p>
+
+<p>Incomplete and occasionally incorrect documentation is available at <a
+href="http://nbaum.github.io/blower">nbaum.github.io/blower</a>/</p>
 
 <h2 id="label-Usage">Usage</h2>
 
@@ -83,34 +86,10 @@ which runs “Blowfile”.</p>
 
 <p>The Blowfile will normally be used to configure the hosts that the rest of
 the tasks operate on.</p>
-
-<h2 id="label-Finding+tasks">Finding tasks</h2>
-
-<p>Blower looks for task files first literally and then with .rb appended.</p>
-
-<p>If a task file is a directory, then it searches it for a task with the same
-basename as the current task. If it finds one, and the directory contains a
-Blowfile, the Blowfile will be executed first.</p>
-
-<p><strong>sh</strong> executes a command on the remote host(s), via ssh. The
-command is executed on all hosts in serial. <strong>sh</strong> does not
-return until all hosts have finished.</p>
-
-<p><strong>reboot</strong> reboots each host in serial and waits for it to
-respond to ssh requests.</p>
-
-<p><strong>cp</strong> copies a file from the local filesystem to the remote
-host(s).</p>
-
-<p><strong>one_host</strong> runs a block of commands on only one host. This
-is primarily useful for running cluster-wide commands on clustered hosts.</p>
-
-<p><strong>each_host</strong> runs a block of commands on each host in serial.
-This should be used if you need to customize commands for each host.</p>
 </div></div>
 
     <div id="footer">
-  Generated on Thu Nov  5 17:25:43 2015 by
+  Generated on Thu Nov  5 17:41:16 2015 by
   <a href="http://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
   0.8.7.6 (ruby-2.2.3).
 </div>
