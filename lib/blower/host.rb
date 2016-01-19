@@ -2,6 +2,7 @@ require 'net/ssh'
 require 'net/scp'
 require 'monitor'
 require 'colorize'
+require 'timeout'
 
 module Blower
 
@@ -43,8 +44,10 @@ module Blower
       synchronize do
         if from.is_a?(String) || from.is_a?(Array)
           to += "/" if to[-1] != "/" && from.is_a?(Array)
-          IO.popen(["rsync", "-z", "-r", "--progress", *from, "#{@user}@#{@name}:#{to}"],
-                   in: :close, err: %i(child out)) do |io|
+          command = ["rsync", "-e", "ssh -oStrictHostKeyChecking=no", "-r", "--progress", *from,
+                     "#{@user}@#{@name}:#{to}"]
+          log.trace command.shelljoin
+          IO.popen(command, in: :close, err: %i(child out)) do |io|
             until io.eof?
               begin
                 output << io.read_nonblock(100)
@@ -53,39 +56,46 @@ module Blower
                 retry
               end
             end
+            io.close
+            if !$?.success?
+              log.fatal "exit status #{$?.exitstatus}: #{command}"
+              log.raw output
+            end
           end
         elsif from.respond_to?(:read)
-          log.info "string -> #{to}" unless quiet
           ssh.scp.upload!(from, to)
         else
           fail "Don't know how to copy a #{from.class}: #{from}"
         end
       end
       true
-    rescue => e
-      false
     end
 
     def sh (command, output = "")
       synchronize do
+        log.debug command
         result = nil
         ch = ssh.open_channel do |ch|
           ch.exec(command) do |_, success|
             fail "failed to execute command" unless success
             ch.on_data do |_, data|
+              log.trace "received #{data.bytesize} bytes stdout"
               output << data
             end
             ch.on_extended_data do |_, _, data|
+              log.trace "received #{data.bytesize} bytes stderr"
               output << data.colorize(:red)
             end
-            ch.on_request("exit-status") { |_, data| result = data.read_long }
+            ch.on_request("exit-status") do |_, data|
+              result = data.read_long
+              log.trace "received exit-status #{result}"
+            end
           end
         end
         ch.wait
         if result != 0
-          log.fatal "failed on #{name}"
+          log.fatal "exit status #{result}: #{command}"
           log.raw output
-          exit 1
         end
         result
       end
@@ -102,12 +112,18 @@ module Blower
     attr_accessor :data
 
     def log
-      Logger.instance
+      Logger.instance.with_prefix("(on #{name})")
     end
 
     def ssh
-      @ssh = nil if @ssh && @ssh.closed?
-      @ssh ||= Net::SSH.start(name, user)
+      if @ssh && @ssh.closed?
+        log.trace "Discovered the connection to ssh:#{name}@#{user} was lost"
+        @ssh = nil
+      end
+      @ssh ||= begin
+        log.trace "Connecting to ssh:#{name}@#{user}"
+        Net::SSH.start(name, user)
+      end
     end
 
   end

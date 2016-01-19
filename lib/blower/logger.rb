@@ -13,17 +13,33 @@ module Blower
     include Singleton
 
     COLORS = {
-      trace: :light_black,
-      debug: :light_black,
-      info: :blue,
-      warn: :yellow,
-      error: :red,
-      fatal: :magenta,
+      trace: {color: :light_black},
+      debug: {color: :default},
+      info:  {color: :blue},
+      warn:  {color: :yellow},
+      error: {color: :red},
+      fatal: {color: :light_white, background: :red},
     }
 
-    def initialize
+    RANKS = {
+      all: 100,
+      trace: 60,
+      debug: 50,
+      info:  40,
+      warn:  30,
+      error: 20,
+      fatal: 10,
+      off: 0,
+    }
+
+    def initialize (prefix = nil)
       @indent = 0
+      @prefix = prefix
       super()
+    end
+
+    def with_prefix (string)
+      self.class.send(:new, "#{@prefix}#{string}")
     end
 
     # Log a trace level event
@@ -51,10 +67,10 @@ module Blower
     private
 
     def log (message = nil, level = :info, &block)
-      if message
-        synchronize do
+      if message && (level.nil? || RANKS[level] <= RANKS[$LOGLEVEL])
+        Logger.instance.synchronize do
           message = message.colorize(COLORS[level]) if level
-          puts "  " * @indent + message
+          puts "  " * @indent + (@prefix ? @prefix + " " : "") + message
         end
       end
       begin

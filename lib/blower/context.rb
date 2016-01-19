@@ -12,67 +12,107 @@ module Blower
     # Search path for tasks.
     attr_accessor :path
 
-    # The current target of operations. Usually a Host, HostGroup, or MockHost.
-    attr_accessor :target
+    # The target hosts.
+    attr_accessor :hosts
 
     def initialize (path)
       @path = path
+      @hosts = []
       @have_seen = {}
     end
 
-    # Send a message to the logger, prefixing it with the target name, if it has one.
-    # Passes the block through to the logger.
-    def log (message, level, &block)
-      message = "(on #{target.name}) " + message if target.respond_to?(:name)
-      Logger.instance.log(message, level, &block)
+    def log
+      Logger.instance
     end
 
-    # Log an INFO message.
-    def stage (message, &block)
-      log message, :info, &block
+    def add_host (spec)
+      host = Host.new(*spec) unless spec.is_a?(Host)
+      @hosts << host
     end
 
     # Execute the block on one host.
     # @param host Host to use. If nil, a random host is picked.
     def one_host (host = nil, &block)
-      each_host [host || target.hosts.sample], &block
+      map [host || target.hosts.sample], &block
     end
 
     # Execute the block once for each host.
     # Each block executes in a copy of the context.
-    def each_host (hosts = target, &block)
-      hosts.each do |host|
-        ctx = dup
-        ctx.target = host
-        ctx.instance_exec(&block)
-      end
+    def each (hosts = @hosts, &block)
+      map(hosts, &block)
+      nil
+    end
+
+    # Execute the block once for each host.
+    # Each block executes in a copy of the context.
+    def map (hosts = @hosts, &block)
+      Kernel.fail "No hosts left" if hosts.empty?
+      hosts.map do |host|
+        Thread.new do
+          block.(host)
+        end
+      end.map(&:join)
     end
 
     # Reboot each host and waits for them to come back up.
     # @param command The reboot command. A string.
     def reboot (command = "reboot")
-      each_host do
+      each do
         begin
           sh command
         rescue IOError
-          sleep 0.1 while ping
-          sleep 1.0 until ping
         end
+        log.debug "Waiting for server to go away..."
+        sleep 0.1 while ping(true)
+        log.debug "Waiting for server to come back..."
+        sleep 1.0 until ping(true)
       end
     end
 
     # Execute a shell command on each host.
-    def sh (command)
-      log "execute #{command}", :debug
-      target.sh(command)
+    def sh (command, quiet = false)
+      log.info "sh: #{command}" unless quiet
+      map do |host|
+        status = host.sh(command)
+        fail host, "#{command}: exit status #{status}" if status != 0
+      end
+    end
+
+    # Execute a command on the remote host.
+    # @return false if the command exits with a non-zero status
+    def sh? (command, quiet = false)
+      log.info "sh?: #{command}" unless quiet
+      win = true
+      map do |host|
+        status = host.sh(command)
+        win = false if status != 0
+      end
+      win
+    end
+
+    # Execute a command on the remote host.
+    # @return false if the command exits with a non-zero status
+    def ping (quiet = false)
+      log.info "ping" unless quiet
+      win = true
+      map do |host|
+        win &&= host.ping
+      end
+      win
+    end
+
+    def fail (host, message)
+      @hosts -= [host]
     end
 
     # Copy a file or readable to the host filesystem.
     # @param from An object that responds to read, or a string which names a file, or an array of either.
     # @param to A string.
     def cp (from, to)
-      log "upload #{Array(from).join(", ")} -> #{to}", :debug
-      target.cp(from, to)
+      log.info "cp: #{from} -> #{to}"
+      map do |host|
+        host.cp(from, to)
+      end
     end
 
     # Writes a string to a file on the host filesystem.
@@ -81,15 +121,6 @@ module Blower
     def write (string, to)
       log "upload data to #{to}", :debug
       target.cp(StringIO.new(string), to)
-    end
-
-    # Execute a command on the remote host.
-    # @return false if the command exits with a non-zero status
-    def sh? (command)
-      log "execute #{command}", :debug
-      target.sh(command)
-    rescue Blower::Host::ExecuteError
-      false
     end
 
     # Capture the output a command on the remote host.
@@ -102,7 +133,7 @@ module Blower
 
     # Run a task.
     # @param task (String) The name of the task
-    def run (task)
+    def run (task, optional: false)
       files = []
       @path.each do |dir|
         name = File.join(dir, task)
@@ -118,16 +149,22 @@ module Blower
         break unless files.empty?
       end
       if files.empty?
-        fail "can't find #{task}"
+        if optional
+          return
+        else
+          fail "can't find #{task}"
+        end
       else
-        begin
-          old_task, @task = @task, task
-          files.each do |file|
-            @have_seen[file] = true
-            instance_eval(File.read(file), file)
+        log.info "Running #{task}" do
+          begin
+            old_task, @task = @task, task
+            files.each do |file|
+              @have_seen[file] = true
+              instance_eval(File.read(file), file)
+            end
+          ensure
+            @task = old_task
           end
-        ensure
-          @task = old_task
         end
       end
     end
