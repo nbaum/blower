@@ -12,75 +12,94 @@ module Blower
     include MonitorMixin
     include Singleton
 
+    # Logging levels in ascending order of severity.
+    LEVELS = %i(all trace debug info warn error fatal none)
+
+    # Colorize specifications for log levels.
     COLORS = {
-      trace: {color: :light_black},
-      debug: {color: :default},
-      info:  {color: :blue},
-      warn:  {color: :yellow},
-      error: {color: :red},
-      fatal: {color: :light_white, background: :red},
+      trace: { color: :light_black },
+      debug: { color: :default },
+      info:  { color: :blue },
+      warn:  { color: :yellow },
+      error: { color: :red },
+      fatal: { color: :light_white, background: :red },
     }
 
-    RANKS = {
-      all: 100,
-      trace: 60,
-      debug: 50,
-      info:  40,
-      warn:  30,
-      error: 20,
-      fatal: 10,
-      off: 0,
-    }
+    class << self
+      # The minimum severity level for which messages will be displayed.
+      attr_accessor :level
 
-    def initialize (prefix = nil)
-      @indent = 0
+      # The current indentation level.
+      attr_accessor :indent
+    end
+
+    self.indent = 0
+
+    self.level = :info
+
+    def initialize (prefix = "")
       @prefix = prefix
       super()
     end
 
+    # Return a logger with the specified prefix
     def with_prefix (string)
-      self.class.send(:new, "#{@prefix}#{string}")
+      Logger.send(:new, string)
     end
 
-    # Log a trace level event
-    def trace (a=nil, *b, &c); log(a, :trace, *b, &c); end
+    # Yield with a temporarily incremented indent counter
+    def with_indent ()
+      Logger.indent += 1
+      yield
+    ensure
+      Logger.indent -= 1
+    end
 
-    # Log a debug level event
-    def debug (a=nil, *b, &c); log(a, :debug, *b, &c); end
-
-    # Log a info level event
-    def info (a=nil, *b, &c); log(a, :info, *b, &c); end
-
-    # Log a warn level event
-    def warn (a=nil, *b, &c); log(a, :warn, *b, &c); end
-
-    # Log a error level event
-    def error (a=nil, *b, &c); log(a, :error, *b, &c); end
-
-    # Log a fatal level event
-    def fatal (a=nil, *b, &c); log(a, :fatal, *b, &c); end
-
-    # Log a level-less event
-    # @deprecated
-    def raw (a=nil, *b, &c); log(a, nil, *b, &c); end
-
-    private
-
-    def log (message = nil, level = :info, &block)
-      if message && (level.nil? || RANKS[level] <= RANKS[$LOGLEVEL])
-        Logger.instance.synchronize do
-          message = message.colorize(COLORS[level]) if level
-          puts "  " * @indent + (@prefix ? @prefix + " " : "") + message
+    # Display a log message. The block, if specified, is executed in an indented region after the log message is shown.
+    # @api private
+    # @param [Symbol] level the severity level
+    # @param [#to_s] message the message to display
+    # @param block a block to execute with an indent after the message is displayed
+    # @return the value of block, or nil
+    def log (level, message, quiet: false, &block)
+      if !quiet && (LEVELS.index(level) >= LEVELS.index(Logger.level))
+        synchronize do
+          message = message.to_s.colorize(COLORS[level]) if level
+          message.split("\n").each do |line|
+            STDERR.puts "  " * Logger.indent + @prefix + line
+          end
         end
-      end
-      begin
-        @indent += 1
+        with_indent(&block) if block
+      elsif block
         block.()
-      ensure
-        @indent -= 1
-      end if block
+      end
     end
+
+    # Define a helper method for a given severity level.
+    # @!macro [attach] log_helper
+    #   @!method $1(message, &block)
+    #   Display a $1 log message, as if by calling log directly.
+    #   @param [#to_s] message the message to display
+    #   @param block a block to execute with an indent after the message is displayed
+    #   @return the value of block, or nil
+    def self.define_helper (level)
+      define_method(level) do |*args, **kwargs, &block|
+        log(level, *args, **kwargs, &block)
+      end
+    end
+
+    define_helper :trace
+    define_helper :debug
+    define_helper :info
+    define_helper :warn
+    define_helper :error
+    define_helper :fatal
 
   end
 
+end
+
+# Return the logger instance.
+def log
+  Blower::Logger.instance
 end

@@ -3,19 +3,35 @@ require 'blower'
 require 'pathname'
 require 'optparse'
 
-$LOGLEVEL = :info
+path = []
 
 OptionParser.new do |opts|
   opts.banner = "Usage: blow [options] task..."
-  opts.on "-d DIR", "Change directory" do |v|
+  opts.on "-d DIR", "Set working directory" do |v|
     Dir.chdir v
   end
-  opts.on "-l LEVEL", "Minimal log level" do |l|
-    $LOGLEVEL = l.downcase.to_sym
+  opts.on "-l LEVEL", "Minimal log level" do |v|
+    Blower::Logger.level = v.downcase.to_sym
+  end
+  opts.on "-I DIR", "Add directory to search path" do |v|
+    path << v
+  end
+  opts.on "-v", "Show version and exit" do |v|
+    puts "blow (blower) #{Blower::VERSION}"
+    exit
   end
 end.order!
 
-context = Blower::Context.new([".", Dir.pwd])
+$: << File.join(Dir.pwd, "lib")
+
+path.unshift Dir.pwd
+
+context = Blower::Context.new(path)
+
+if File.directory?(File.join(Dir.pwd, "lib"))
+  context.path << File.join(Dir.pwd, "lib")
+end
+
 context.run "Blowfile", optional: true
 begin
   until ARGV.empty?
