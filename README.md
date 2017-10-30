@@ -12,8 +12,6 @@ Blower is a server orchestration tool with a focus on simplicity of design and m
 
 Unlike competing tools such as ansible, salt, chef, or puppet, blower doesn't provide unnecessary abstractions over existing OS functionality. Where reasonable, task scripts use the same commands as when configuring a server manually.
 
-Incomplete and occasionally incorrect documentation is available at http://nbaum.github.io/blower/
-
 ## Options
 
 Execute tasks.

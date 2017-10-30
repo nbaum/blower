@@ -15,7 +15,8 @@ Gem::Specification.new do |s|
   s.homepage    = "http://www.github.org/nbaum/blower"
   s.license     = "MIT"
   s.add_runtime_dependency "net-ssh", ["~> 3.0"]
+  s.add_runtime_dependency "net-ssh-gateway", ["~> 1.2"]
   s.add_runtime_dependency "net-scp", ["~> 1.2"]
   s.add_runtime_dependency "colorize", ["~> 0.7"]
-  s.add_development_dependency "yard"
+  s.add_development_dependency "yard", ["~> 0.8"]
 end

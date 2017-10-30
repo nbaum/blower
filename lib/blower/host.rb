@@ -1,7 +1,9 @@
 require 'net/ssh'
+require 'net/ssh/gateway'
 require 'net/scp'
 require 'monitor'
 require 'colorize'
+require 'base64'
 require 'timeout'
 
 module Blower
@@ -16,17 +18,20 @@ module Blower
     # The host adress.
     attr_accessor :address
 
+    attr_accessor :name
+
+    # The gateway host
+    attr_accessor :via
+
     def_delegators :data, :[], :[]=
 
-    def initialize (address, data: {}, user: "root")
+    def initialize (address, data: {}, user: "root", via: nil, name: address)
       @address = address
+      @name = name
       @user = user
       @data = data
+      @via = via
       super()
-    end
-
-    def name
-      to_s
     end
 
     # Represent the host as a string.
@@ -57,7 +62,7 @@ module Blower
         [froms].flatten.each do |from|
           if from.is_a?(String)
             to += "/" if to[-1] != "/" && from.is_a?(Array)
-            command = ["rsync", "-e", "ssh -oStrictHostKeyChecking=no", "-r"]
+            command = ["rsync", "-e", ssh_command, "-r"]
             command += [*from, "#{as}@#{@address}:#{to}"]
             log.trace command.shelljoin, quiet: quiet
             IO.popen(command, in: :close, err: %i(child out)) do |io|
@@ -77,7 +82,7 @@ module Blower
               end
             end
           elsif from.respond_to?(:read)
-            cmd = "echo #{from.read.shellescape} > #{to.shellescape}"
+            cmd = "echo #{Base64.strict_encode64(from.read).shellescape} | base64 -d > #{to.shellescape}"
             sh cmd, quiet: quiet
           else
             fail "Don't know how to copy a #{from.class}: #{from}"
@@ -96,7 +101,7 @@ module Blower
     # Read a host file.
     # @api private
     def read (filename, as: nil, quiet: false)
-      sh "cat #{filename.shellescape}", as: as, quiet: quiet
+      Base64.decode64 sh("cat #{filename.shellescape} | base64", as: as, quiet: quiet)
     end
 
     # Execute a command on the host and return its output.
@@ -109,7 +114,7 @@ module Blower
         result = nil
         ch = ssh(as).open_channel do |ch|
           ch.request_pty do |ch, success|
-            "failed to acquire pty" unless success unless success
+            "failed to acquire pty" unless success
             ch.exec(command) do |_, success|
               fail "failed to execute command" unless success
               ch.on_data do |_, data|
@@ -139,9 +144,23 @@ module Blower
       @log ||= Logger.instance.with_prefix("on #{self}: ")
     end
 
+    # Connect to the host as a Gateway
+    # @api private
+    def gateway ()
+      Net::SSH::Gateway.new(address, user)
+    end
+
     private
 
     attr_accessor :data
+
+    def ssh_command
+      if via
+        "ssh -t -A -oStrictHostKeyChecking=no #{via} ssh -oStrictHostKeyChecking=no"
+      else
+        "ssh -oStrictHostKeyChecking=no"
+      end
+    end
 
     def ssh (user)
       @sessions ||= {}
@@ -150,8 +169,15 @@ module Blower
         @sessions[user] = nil
       end
       @sessions[user] ||= begin
-        log.debug "Connecting to ssh:#{self}"
-        Net::SSH.start(address, user)
+        if @via
+          log.debug "Connecting to ssh:#{self} via ssh:#{via}"
+          via.gateway.ssh(address, user)
+        else
+          log.debug "Connecting to ssh:#{self}"
+          Timeout.timeout(5) do
+            Net::SSH.start(address, user)
+          end
+        end
       end
     end
 

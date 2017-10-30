@@ -265,23 +265,63 @@ module Blower
 
     private
 
+    class HostHash < Hash
+
+      def to_s
+        map do |host, data|
+          "#{host.name.blue} (#{host.address.green})\n" + data.strip.to_s.gsub(/^/, "  ")
+        end.join("\n")
+      end
+
+      def values_map!
+        each do |host, data|
+          self[host] = yield(host, data)
+        end
+        self
+      end
+
+      def stash (key)
+        each do |host, data|
+          host[key] = data.strip if data
+        end
+      end
+
+    end
+
     def hash_map (hosts = self.hosts)
-      {}.tap do |result|
+      HostHash.new.tap do |result|
         each(hosts) do |host|
           result[host] = yield(host)
         end
       end
     end
 
-    def each (hosts = self.hosts)
-      fail "No hosts" if hosts.empty?
-      [hosts].flatten.each do |host|
-        begin
+    def on_each (hosts = self.hosts, serial: true)
+      each(hosts, serial: serial) do |host|
+        on host do
           yield host
-        rescue => e
-          host.log.error e.message
-          hosts.delete host
         end
+      end
+    end
+
+    def each (hosts = self.hosts, serial: false)
+      fail "No hosts" if hosts.empty?
+      if false
+        [hosts].flatten.each do |host|
+          yield host
+        end
+      else
+        threads = [hosts].flatten.map do |host|
+          Thread.new do
+            begin
+              yield host
+            rescue => e
+              host.log.error e.message
+              hosts.delete host
+            end
+          end
+        end
+        threads.each(&:join)
       end
       fail "No hosts remaining" if hosts.empty?
     end

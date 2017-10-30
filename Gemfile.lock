@@ -1,10 +1,11 @@
 PATH
   remote: .
   specs:
-    blower (4.0)
+    blower (4.3)
       colorize (~> 0.7)
       net-scp (~> 1.2)
       net-ssh (~> 3.0)
+      net-ssh-gateway (~> 1.2)
 
 GEM
   remote: https://rubygems.org/
@@ -12,7 +13,9 @@ GEM
     colorize (0.7.7)
     net-scp (1.2.1)
       net-ssh (>= 2.6.5)
-    net-ssh (3.0.2)
+    net-ssh (3.2.0)
+    net-ssh-gateway (1.2.0)
+      net-ssh (>= 2.6.5)
     yard (0.8.7.6)
 
 PLATFORMS
@@ -20,7 +23,7 @@ PLATFORMS
 
 DEPENDENCIES
   blower!
-  yard
+  yard (~> 0.8)
 
 BUNDLED WITH
-   1.11.2
+   1.12.5

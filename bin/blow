@@ -6,6 +6,7 @@ require 'optparse'
 path = []
 
 OptionParser.new do |opts|
+  Version = Blower::VERSION
   opts.banner = "Usage: blow [options] task..."
   opts.on "-d DIR", "Set working directory" do |v|
     Dir.chdir v
@@ -15,10 +16,6 @@ OptionParser.new do |opts|
   end
   opts.on "-I DIR", "Add directory to search path" do |v|
     path << v
-  end
-  opts.on "-v", "Show version and exit" do |v|
-    puts "blow (blower) #{Blower::VERSION}"
-    exit
   end
 end.order!
 
