@@ -1,5 +1,5 @@
 set -e
-rm blower-*.gem
+rm -f blower-*.gem
 gem build blower.gemspec
 gem install blower-*.gem
 gem push blower-*.gem
