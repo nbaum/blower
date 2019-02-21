@@ -1,3 +1,4 @@
+require 'colorize'
 require "singleton"
 
 module Blower
@@ -33,12 +34,11 @@ module Blower
       attr_accessor :indent
     end
 
-    self.indent = 0
-
     self.level = :info
 
     def initialize (prefix = "")
       @prefix = prefix
+      thread[:indent] = 0
       super()
     end
 
@@ -49,10 +49,10 @@ module Blower
 
     # Yield with a temporarily incremented indent counter
     def with_indent ()
-      Logger.indent += 1
+      thread[:indent] += 1
       yield
     ensure
-      Logger.indent -= 1
+      thread[:indent] -= 1
     end
 
     # Display a log message. The block, if specified, is executed in an indented region after the log message is shown.
@@ -65,8 +65,9 @@ module Blower
       if !quiet && (LEVELS.index(level) >= LEVELS.index(Logger.level))
         synchronize do
           message = message.to_s.colorize(COLORS[level]) if level
+          message = message.to_s.colorize(COLORS[level]) if level
           message.split("\n").each do |line|
-            STDERR.puts "  " * Logger.indent + @prefix + line
+            STDERR.puts "  " * thread[:indent] + @prefix + line
           end
         end
         with_indent(&block) if block
@@ -94,6 +95,10 @@ module Blower
     define_helper :warn
     define_helper :error
     define_helper :fatal
+
+    def thread
+      Thread.current
+    end
 
   end
 

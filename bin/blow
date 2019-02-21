@@ -30,6 +30,7 @@ if File.directory?(File.join(Dir.pwd, "lib"))
 end
 
 context.run "Blowfile", optional: true
+
 begin
   until ARGV.empty?
     context.run ARGV.shift
