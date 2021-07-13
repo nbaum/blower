@@ -2,7 +2,6 @@ require 'net/ssh'
 require 'net/ssh/gateway'
 require 'net/scp'
 require 'monitor'
-require 'colorize'
 require 'base64'
 require 'timeout'
 
@@ -55,7 +54,7 @@ module Blower
 
     # Copy files or directories to the host.
     # @api private
-    def cp (froms, to, as: nil, quiet: false)
+    def cp (froms, to, as: nil, quiet: false, delete: false)
       as ||= @user
       output = ""
       synchronize do
@@ -63,6 +62,10 @@ module Blower
           if from.is_a?(String)
             to += "/" if to[-1] != "/" && from.is_a?(Array)
             command = ["rsync", "-e", ssh_command, "-r"]
+            if File.exist?(".blowignore")
+              command += ["--exclude-from", ".blowignore"]
+            end
+            command += ["--delete"] if delete
             command += [*from, "#{as}@#{@address}:#{to}"]
             log.trace command.shelljoin, quiet: quiet
             IO.popen(command, in: :close, err: %i(child out)) do |io|
@@ -123,7 +126,7 @@ module Blower
               end
               ch.on_extended_data do |_, _, data|
                 log.trace "received #{data.bytesize} bytes stderr", quiet: quiet
-                output << data.colorize(:red)
+                output << data
               end
               ch.on_request("exit-status") do |_, data|
                 result = data.read_long

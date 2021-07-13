@@ -1,3 +1,3 @@
 module Blower
-  VERSION = "4.7"
+  VERSION = "6"
 end

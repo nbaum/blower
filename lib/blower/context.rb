@@ -1,3 +1,5 @@
+require 'colorize'
+require 'find'
 require 'erb'
 require 'json'
 require 'forwardable'
@@ -31,6 +33,9 @@ module Blower
     # The target hosts.
     attr_accessor :hosts
 
+    # The failed hosts.
+    attr_accessor :failures
+
     # Username override. If not-nil, this user is used for all remote accesses.
     attr_accessor :user
 
@@ -44,6 +49,7 @@ module Blower
       @path = path
       @data = {}
       @hosts = []
+      @failures = []
     end
 
     # Return a context variable.
@@ -114,12 +120,20 @@ module Blower
     # @raise Whatever the task itself raises.
     # @return The result of evaluating the task file.
     def run (task, optional: false, quiet: false, once: nil)
+      @run_cache ||= {}
       once once, quiet: quiet do
         log.info "run #{task}", quiet: quiet do
           file = find_task(task)
-          code = File.read(file)
-          let :@file => file do
-            instance_eval(code, file)
+          if @run_cache.has_key? file
+            log.info "*cached*"
+            @run_cache[file]
+          else
+            @run_cache[file] = begin
+              code = File.read(file)
+              let :@file => file do
+                instance_eval(code, file)
+              end
+            end
           end
         end
       end
@@ -135,7 +149,7 @@ module Blower
     # @macro onceable
     def sh (command, as: user, on: hosts, quiet: false, once: nil)
       self.once once, quiet: quiet do
-        log.info "sh #{command}", quiet: quiet do
+        log.info "sh: #{command}", quiet: quiet do
           hash_map(hosts) do |host|
             host.sh command, as: as, quiet: quiet
           end
@@ -158,12 +172,12 @@ module Blower
     #   @macro asable
     #   @macro quietable
     #   @macro onceable
-    def cp (from, to, as: user, on: hosts, quiet: false, once: nil)
+    def cp (from, to, as: user, on: hosts, quiet: false, once: nil, delete: false)
       self.once once, quiet: quiet do
         log.info "cp: #{from} -> #{to}", quiet: quiet do
           Dir.chdir File.dirname(file) do
             hash_map(hosts) do |host|
-              host.cp from, to, as: as, quiet: quiet
+              host.cp from, to, as: as, quiet: quiet, delete: delete
             end
           end
         end
@@ -212,12 +226,24 @@ module Blower
     def render (from, to, as: user, on: hosts, quiet: false, once: nil)
       self.once once, quiet: quiet do
         Dir.chdir File.dirname(file) do
-          (Dir["#{from}**/*.erb"] + Dir["#{from}**/.*.erb"]).each do |path|
-            template = ERB.new(File.read(path))
-            to_path = to + path[from.length..-5]
-            log.info "render: #{path} -> #{to_path}", quiet: quiet do
-              hash_map(hosts) do |host|
-                host.cp StringIO.new(template.result(binding)), to_path, as: as, quiet: quiet
+          Find.find(from).each do |path|
+            if File.directory?(path)
+              to_path = to + path[from.length..-1]
+              sh "mkdir -p #{to_path.shellescape}"
+            elsif path =~ /\.erb$/
+              template = ERB.new(File.read(path))
+              to_path = to + path[from.length..-5]
+              log.info "render: #{path} -> #{to_path}", quiet: quiet do
+                hash_map(hosts) do |host|
+                  host.cp StringIO.new(template.result(binding)), to_path, as: as, quiet: quiet
+                end
+              end
+            else
+              to_path = to + path[from.length..-1]
+              log.info "copy: #{path} -> #{to_path}", quiet: quiet do
+                hash_map(hosts) do |host|
+                  host.cp File.open(path), to_path, as: as, quiet: quiet
+                end
               end
             end
           end
@@ -269,7 +295,7 @@ module Blower
 
       def to_s
         map do |host, data|
-          "#{host.name.blue} (#{host.address.green})\n" + data.strip.to_s.gsub(/^/, "  ")
+          "#{host.name.blue}\n" + data.strip.to_s.gsub(/^/, "  ")
         end.join("\n")
       end
 
@@ -289,40 +315,80 @@ module Blower
     end
 
     def hash_map (hosts = self.hosts)
-      HostHash.new.tap do |result|
-        each(hosts) do |host|
-          result[host] = yield(host)
+      hh = HostHash.new.tap do |result|
+        each(hosts) do |host, i|
+          result[host] = yield(host, i)
+        end
+      end
+      if @singular
+        hh.values.first
+      else
+        hh
+      end
+    end
+
+    def singularly (flag = true)
+      was, @singular = @singular, flag
+      yield
+    ensure
+      @singular = was
+    end
+
+    def on_one (host = self.hosts.sample, serial: true)
+      ret = nil
+      each([host], serial: serial) do |host, i|
+        on host do
+          singularly do
+            ret = yield host, i
+          end
+        end
+      end
+      ret
+    end
+
+    def on_each (hosts = self.hosts, serial: true)
+      each(hosts, serial: serial) do |host, i|
+        on host do
+          singularly do
+            yield host, i
+          end
         end
       end
     end
 
-    def on_each (hosts = self.hosts, serial: true)
-      each(hosts, serial: serial) do |host|
-        on host do
-          yield host
-        end
+    def locally (&block)
+      on Local.new("<local>") do
+        singularly &block
       end
     end
 
     def each (hosts = self.hosts, serial: false)
       fail "No hosts" if hosts.empty?
-      if false
-        [hosts].flatten.each do |host|
-          yield host
-        end
-      else
-        threads = [hosts].flatten.map do |host|
-          Thread.new do
-            begin
-              yield host
-            rescue => e
-              host.log.error e.message
-              hosts.delete host
-            end
+      q = (@threads || serial) && Queue.new
+      if q && serial
+        q.push nil
+      elsif q
+        @threads.times { q.push nil }
+      end
+      indent = Thread.current[:indent]
+      i = -1
+      threads = [hosts].flatten.map.with_index do |host|
+        Thread.new do
+          Thread.current[:indent] = indent
+          begin
+            q.pop if q
+            yield host, i += 1
+          rescue => e
+            host.log.error e.message
+            hosts.delete host
+            @failures |= [host]
+          ensure
+            q.push nil if q
+            sleep @delay if @delay
           end
         end
-        threads.each(&:join)
       end
+      threads.each(&:join)
       fail "No hosts remaining" if hosts.empty?
     end
 
