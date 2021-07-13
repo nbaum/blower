@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "colorize", ["~> 0.7"]
   s.add_runtime_dependency "rbnacl"
   s.add_runtime_dependency "bcrypt_pbkdf"
-  s.add_development_dependency "yard", ["~> 0.8"]
-
+  s.add_runtime_dependency "ed25519"
+  s.add_runtime_dependency "dotenv"
+  s.add_development_dependency "yard", ["~> 0.9"]
 end
