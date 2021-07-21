@@ -1,9 +1,10 @@
 PATH
   remote: .
   specs:
-    blower (6)
+    blower (10)
       bcrypt_pbkdf
       colorize (~> 0.7)
+      ed25519
       net-scp
       net-ssh
       net-ssh-gateway
@@ -14,6 +15,7 @@ GEM
   specs:
     bcrypt_pbkdf (1.1.0)
     colorize (0.8.1)
+    ed25519 (1.2.4)
     ffi (1.15.3)
     net-scp (3.0.0)
       net-ssh (>= 2.6.5, < 7.0.0)
@@ -22,10 +24,10 @@ GEM
       net-ssh (>= 4.0.0)
     rbnacl (7.1.1)
       ffi
-    yard (0.9.26)
+    yard (0.9.16)
 
 PLATFORMS
-  x86_64-linux
+  ruby
 
 DEPENDENCIES
   blower!
